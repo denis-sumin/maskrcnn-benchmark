@@ -71,21 +71,29 @@ def boxlist_iou(boxlist1, boxlist2):
     boxlist2 = boxlist2.convert("xyxy")
     N = len(boxlist1)
     M = len(boxlist2)
+    iou = torch.zeros([N, M]).to(boxlist1.bbox.device)
 
-    area1 = boxlist1.area()
     area2 = boxlist2.area()
 
-    box1, box2 = boxlist1.bbox, boxlist2.bbox
+    for i in range(0, N, 20):
+        boxlist1_ = BoxList(
+            bbox=boxlist1.bbox[i:min(i+20, N)],
+            image_size=boxlist1.size,
+            mode=boxlist1.mode,
+        )
+        area1 = boxlist1_.area()
 
-    lt = torch.max(box1[:, None, :2], box2[:, :2])  # [N,M,2]
-    rb = torch.min(box1[:, None, 2:], box2[:, 2:])  # [N,M,2]
+        box1, box2 = boxlist1_.bbox, boxlist2.bbox
 
-    TO_REMOVE = 1
+        lt = torch.max(box1[:, None, :2], box2[:, :2])  # [N,M,2]
+        rb = torch.min(box1[:, None, 2:], box2[:, 2:])  # [N,M,2]
 
-    wh = (rb - lt + TO_REMOVE).clamp(min=0)  # [N,M,2]
-    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
+        TO_REMOVE = 1
 
-    iou = inter / (area1[:, None] + area2 - inter)
+        wh = (rb - lt + TO_REMOVE).clamp(min=0)  # [N,M,2]
+        inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
+
+        iou[i:min(i+20, N), :] = inter / (area1[:, None] + area2 - inter)
     return iou
 
 
